@@ -119,6 +119,23 @@ You will also need the FinnHub API for financial data. All of our code is implem
 export FINNHUB_API_KEY=$YOUR_FINNHUB_API_KEY
 ```
 
+#### Optional: Interactive Brokers (IBKR) Integration
+
+TradingAgents now supports Interactive Brokers as an alternative data source with fallback to FinnHub. This provides access to real-time market data, enhanced historical data, and additional company information.
+
+To use IBKR integration:
+1. Install and configure TWS (Trader Workstation) or Gateway
+2. Enable API access in TWS/Gateway settings
+3. Configure TradingAgents to use IBKR as primary data source:
+
+```python
+# In your configuration
+config["data_source"] = "ibkr"  # Use IBKR as primary source
+config["enable_fallback"] = True  # Fallback to FinnHub if IBKR fails
+```
+
+See [IBKR_INTEGRATION.md](IBKR_INTEGRATION.md) for detailed setup instructions.
+
 You will need the OpenAI API for all the agents.
 ```bash
 export OPENAI_API_KEY=$YOUR_OPENAI_API_KEY

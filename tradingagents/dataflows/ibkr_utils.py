@@ -29,6 +29,10 @@ class IBKRConnection:
     async def connect(self):
         """Connect to IBKR TWS/Gateway."""
         try:
+            # Check if already connected
+            if self.connected and self.ib.isConnected():
+                return
+            
             await self.ib.connectAsync(
                 host=self.host,
                 port=self.port,
@@ -37,17 +41,22 @@ class IBKRConnection:
             )
             self.connected = True
             logger.info(f"Connected to IBKR at {self.host}:{self.port}")
+            
         except Exception as e:
             logger.error(f"Failed to connect to IBKR: {e}")
             self.connected = False
-            raise
+            raise ConnectionError(f"Unable to connect to IBKR at {self.host}:{self.port}. Please ensure TWS/Gateway is running.")
     
     async def disconnect(self):
         """Disconnect from IBKR."""
-        if self.connected:
-            self.ib.disconnect()
-            self.connected = False
-            logger.info("Disconnected from IBKR")
+        if self.connected and self.ib.isConnected():
+            try:
+                self.ib.disconnect()
+                self.connected = False
+                logger.info("Disconnected from IBKR")
+            except Exception as e:
+                logger.warning(f"Error during disconnect: {e}")
+                self.connected = False
     
     def get_contract(self, ticker: str, exchange: str = "SMART") -> Contract:
         """Get contract for a ticker."""
@@ -66,20 +75,30 @@ class IBKRConnection:
         
         contract = self.get_contract(ticker)
         
-        # Request historical data
-        bars = await self.ib.reqHistoricalDataAsync(
-            contract,
-            endDateTime='',
-            durationStr=duration,
-            barSizeSetting=bar_size,
-            whatToShow=what_to_show,
-            useRTH=True,
-            formatDate=1
-        )
-        
-        # Convert to DataFrame
-        df = util.df(bars)
-        return df
+        try:
+            # Request historical data with timeout
+            bars = await asyncio.wait_for(
+                self.ib.reqHistoricalDataAsync(
+                    contract,
+                    endDateTime='',
+                    durationStr=duration,
+                    barSizeSetting=bar_size,
+                    whatToShow=what_to_show,
+                    useRTH=True,
+                    formatDate=1
+                ),
+                timeout=self.timeout
+            )
+            
+            # Convert to DataFrame
+            df = util.df(bars)
+            return df
+            
+        except asyncio.TimeoutError:
+            raise TimeoutError(f"Request for historical data timed out after {self.timeout} seconds")
+        except Exception as e:
+            logger.error(f"Error fetching historical data for {ticker}: {e}")
+            return pd.DataFrame()
     
     async def get_news_articles(
         self, 

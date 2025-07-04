@@ -4,7 +4,11 @@ from .yfin_utils import *
 from .stockstats_utils import *
 from .googlenews_utils import *
 from .finnhub_utils import get_data_in_range
-from .data_source_manager import get_data_in_range_with_fallback
+from .data_source_manager import get_data_in_range_with_fallback, cleanup_data_sources
+import atexit
+
+# Register cleanup function to be called on exit
+atexit.register(cleanup_data_sources)
 from dateutil.relativedelta import relativedelta
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime

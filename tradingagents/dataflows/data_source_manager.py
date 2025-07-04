@@ -143,7 +143,7 @@ def get_data_source_manager() -> DataSourceManager:
     return _data_source_manager
 
 
-def get_data_in_range_with_fallback(
+    def get_data_in_range_with_fallback(
     ticker: str, 
     start_date: str, 
     end_date: str, 
@@ -157,28 +157,50 @@ def get_data_in_range_with_fallback(
     """
     manager = get_data_source_manager()
     
-    # Run the async function
+    # Run the async function with proper error handling
     loop = None
     try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    
-    try:
-        return loop.run_until_complete(
+        # Try to get existing event loop
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                loop = None
+        except RuntimeError:
+            loop = None
+        
+        # Create new event loop if needed
+        if loop is None:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        # Run the async function
+        result = loop.run_until_complete(
             manager.get_data_in_range(
                 ticker, start_date, end_date, data_type, data_dir, period, **kwargs
             )
         )
+        
+        return result if result else {}
+        
+    except Exception as e:
+        logger.error(f"Error in data retrieval: {e}")
+        return {}
     finally:
-        # Don't close the loop if it was already running
-        if loop.is_running():
-            pass
-        else:
+        # Only close loop if we created it
+        if loop and not loop.is_running():
             try:
+                # Cancel any pending tasks
+                pending_tasks = asyncio.all_tasks(loop)
+                for task in pending_tasks:
+                    task.cancel()
+                
+                # Wait for tasks to complete
+                if pending_tasks:
+                    loop.run_until_complete(asyncio.gather(*pending_tasks, return_exceptions=True))
+                
                 loop.close()
-            except:
+            except Exception as e:
+                logger.warning(f"Error closing event loop: {e}")
                 pass
 
 
