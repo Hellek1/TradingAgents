@@ -143,7 +143,7 @@ def get_data_source_manager() -> DataSourceManager:
     return _data_source_manager
 
 
-    def get_data_in_range_with_fallback(
+def get_data_in_range_with_fallback(
     ticker: str, 
     start_date: str, 
     end_date: str, 
