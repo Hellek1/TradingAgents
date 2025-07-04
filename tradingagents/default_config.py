@@ -19,4 +19,12 @@ DEFAULT_CONFIG = {
     "max_recur_limit": 100,
     # Tool settings
     "online_tools": True,
+    # Data source settings
+    "data_source": "finnhub",  # Options: "finnhub", "ibkr"
+    "enable_fallback": True,  # Whether to fallback to finnhub when ibkr fails
+    # IBKR settings
+    "ibkr_host": "127.0.0.1",
+    "ibkr_port": 7497,  # TWS port (7497 for live, 7496 for paper)
+    "ibkr_client_id": 1,
+    "ibkr_timeout": 30,
 }

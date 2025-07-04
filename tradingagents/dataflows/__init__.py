@@ -23,6 +23,11 @@ from .interface import (
     # Market data functions
     get_YFin_data_window,
     get_YFin_data,
+    # IBKR-specific functions
+    get_ibkr_real_time_data,
+    get_ibkr_company_info,
+    get_ibkr_historical_data,
+    get_ibkr_fundamentals,
 )
 
 __all__ = [
@@ -43,4 +48,9 @@ __all__ = [
     # Market data functions
     "get_YFin_data_window",
     "get_YFin_data",
+    # IBKR-specific functions
+    "get_ibkr_real_time_data",
+    "get_ibkr_company_info",
+    "get_ibkr_historical_data",
+    "get_ibkr_fundamentals",
 ]

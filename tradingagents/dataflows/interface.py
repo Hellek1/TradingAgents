@@ -4,6 +4,7 @@ from .yfin_utils import *
 from .stockstats_utils import *
 from .googlenews_utils import *
 from .finnhub_utils import get_data_in_range
+from .data_source_manager import get_data_in_range_with_fallback
 from dateutil.relativedelta import relativedelta
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -40,7 +41,7 @@ def get_finnhub_news(
     before = start_date - relativedelta(days=look_back_days)
     before = before.strftime("%Y-%m-%d")
 
-    result = get_data_in_range(ticker, before, curr_date, "news_data", DATA_DIR)
+    result = get_data_in_range_with_fallback(ticker, before, curr_date, "news_data", DATA_DIR)
 
     if len(result) == 0:
         return ""
@@ -79,7 +80,7 @@ def get_finnhub_company_insider_sentiment(
     before = date_obj - relativedelta(days=look_back_days)
     before = before.strftime("%Y-%m-%d")
 
-    data = get_data_in_range(ticker, before, curr_date, "insider_senti", DATA_DIR)
+    data = get_data_in_range_with_fallback(ticker, before, curr_date, "insider_senti", DATA_DIR)
 
     if len(data) == 0:
         return ""
@@ -120,7 +121,7 @@ def get_finnhub_company_insider_transactions(
     before = date_obj - relativedelta(days=look_back_days)
     before = before.strftime("%Y-%m-%d")
 
-    data = get_data_in_range(ticker, before, curr_date, "insider_trans", DATA_DIR)
+    data = get_data_in_range_with_fallback(ticker, before, curr_date, "insider_trans", DATA_DIR)
 
     if len(data) == 0:
         return ""
@@ -805,3 +806,260 @@ def get_fundamentals_openai(ticker, curr_date):
     )
 
     return response.output[1].content[0].text
+
+
+def get_ibkr_real_time_data(
+    ticker: Annotated[str, "ticker symbol"],
+    curr_date: Annotated[str, "current date in yyyy-mm-dd format"],
+) -> str:
+    """
+    Get real-time market data from IBKR.
+    
+    Args:
+        ticker: Stock ticker symbol
+        curr_date: Current date in yyyy-mm-dd format
+    
+    Returns:
+        String containing real-time market data
+    """
+    try:
+        from .data_source_manager import get_data_source_manager
+        import asyncio
+        
+        manager = get_data_source_manager()
+        
+        # Force use of IBKR for real-time data
+        loop = None
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        try:
+            data = loop.run_until_complete(
+                manager._get_ibkr_data(ticker, curr_date, curr_date, "real_time")
+            )
+            
+            if data and curr_date in data:
+                rt_data = data[curr_date]
+                if rt_data:
+                    return (
+                        f"## {ticker} Real-Time Market Data as of {curr_date}:\n"
+                        f"Last Price: ${rt_data.get('last', 'N/A')}\n"
+                        f"Bid: ${rt_data.get('bid', 'N/A')} (Size: {rt_data.get('bidSize', 'N/A')})\n"
+                        f"Ask: ${rt_data.get('ask', 'N/A')} (Size: {rt_data.get('askSize', 'N/A')})\n"
+                        f"Volume: {rt_data.get('volume', 'N/A'):,}\n"
+                        f"High: ${rt_data.get('high', 'N/A')}\n"
+                        f"Low: ${rt_data.get('low', 'N/A')}\n"
+                        f"Close: ${rt_data.get('close', 'N/A')}\n"
+                        f"Halted: {rt_data.get('halted', 'N/A')}\n"
+                        f"Last Updated: {rt_data.get('time', 'N/A')}"
+                    )
+            
+            return f"No real-time data available for {ticker}"
+        
+        finally:
+            if not loop.is_running():
+                try:
+                    loop.close()
+                except:
+                    pass
+    
+    except Exception as e:
+        return f"Error fetching real-time data for {ticker}: {str(e)}"
+
+
+def get_ibkr_company_info(
+    ticker: Annotated[str, "ticker symbol"],
+    curr_date: Annotated[str, "current date in yyyy-mm-dd format"],
+) -> str:
+    """
+    Get detailed company information from IBKR.
+    
+    Args:
+        ticker: Stock ticker symbol
+        curr_date: Current date in yyyy-mm-dd format
+    
+    Returns:
+        String containing company information
+    """
+    try:
+        from .data_source_manager import get_data_source_manager
+        import asyncio
+        
+        manager = get_data_source_manager()
+        
+        # Force use of IBKR for company info
+        loop = None
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        try:
+            data = loop.run_until_complete(
+                manager._get_ibkr_data(ticker, curr_date, curr_date, "company_info")
+            )
+            
+            if data and curr_date in data:
+                company_info = data[curr_date]
+                if company_info:
+                    return (
+                        f"## {ticker} Company Information:\n"
+                        f"Symbol: {company_info.get('symbol', 'N/A')}\n"
+                        f"Exchange: {company_info.get('exchange', 'N/A')}\n"
+                        f"Currency: {company_info.get('currency', 'N/A')}\n"
+                        f"Long Name: {company_info.get('longName', 'N/A')}\n"
+                        f"Industry: {company_info.get('industry', 'N/A')}\n"
+                        f"Category: {company_info.get('category', 'N/A')}\n"
+                        f"Subcategory: {company_info.get('subcategory', 'N/A')}\n"
+                        f"Time Zone: {company_info.get('timeZoneId', 'N/A')}\n"
+                        f"Trading Hours: {company_info.get('tradingHours', 'N/A')}\n"
+                        f"Min Tick: {company_info.get('minTick', 'N/A')}\n"
+                        f"Order Types: {company_info.get('orderTypes', 'N/A')}\n"
+                        f"Valid Exchanges: {company_info.get('validExchanges', 'N/A')}"
+                    )
+            
+            return f"No company information available for {ticker}"
+        
+        finally:
+            if not loop.is_running():
+                try:
+                    loop.close()
+                except:
+                    pass
+    
+    except Exception as e:
+        return f"Error fetching company info for {ticker}: {str(e)}"
+
+
+def get_ibkr_historical_data(
+    ticker: Annotated[str, "ticker symbol"],
+    curr_date: Annotated[str, "current date in yyyy-mm-dd format"],
+    look_back_days: Annotated[int, "how many days to look back"],
+    bar_size: Annotated[str, "bar size (1 day, 1 hour, 5 mins, etc.)"] = "1 day",
+) -> str:
+    """
+    Get historical market data from IBKR.
+    
+    Args:
+        ticker: Stock ticker symbol
+        curr_date: Current date in yyyy-mm-dd format
+        look_back_days: Number of days to look back
+        bar_size: Bar size for historical data
+    
+    Returns:
+        String containing historical market data
+    """
+    try:
+        from .data_source_manager import get_data_source_manager
+        from datetime import datetime, timedelta
+        import asyncio
+        
+        manager = get_data_source_manager()
+        
+        # Calculate start date
+        curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
+        start_dt = curr_dt - timedelta(days=look_back_days)
+        start_date = start_dt.strftime("%Y-%m-%d")
+        
+        # Force use of IBKR for historical data
+        loop = None
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        try:
+            data = loop.run_until_complete(
+                manager._get_ibkr_data(
+                    ticker, start_date, curr_date, "historical",
+                    bar_size=bar_size,
+                    duration=f"{look_back_days} D"
+                )
+            )
+            
+            if data:
+                result_str = f"## {ticker} Historical Data ({bar_size} bars) from {start_date} to {curr_date}:\n\n"
+                
+                for date, day_data in sorted(data.items()):
+                    if isinstance(day_data, dict):
+                        result_str += (
+                            f"### {date}:\n"
+                            f"Open: ${day_data.get('open', 'N/A')}\n"
+                            f"High: ${day_data.get('high', 'N/A')}\n"
+                            f"Low: ${day_data.get('low', 'N/A')}\n"
+                            f"Close: ${day_data.get('close', 'N/A')}\n"
+                            f"Volume: {day_data.get('volume', 'N/A'):,}\n\n"
+                        )
+                
+                return result_str
+            
+            return f"No historical data available for {ticker}"
+        
+        finally:
+            if not loop.is_running():
+                try:
+                    loop.close()
+                except:
+                    pass
+    
+    except Exception as e:
+        return f"Error fetching historical data for {ticker}: {str(e)}"
+
+
+def get_ibkr_fundamentals(
+    ticker: Annotated[str, "ticker symbol"],
+    curr_date: Annotated[str, "current date in yyyy-mm-dd format"],
+) -> str:
+    """
+    Get fundamental data from IBKR.
+    
+    Args:
+        ticker: Stock ticker symbol
+        curr_date: Current date in yyyy-mm-dd format
+    
+    Returns:
+        String containing fundamental data
+    """
+    try:
+        from .data_source_manager import get_data_source_manager
+        import asyncio
+        
+        manager = get_data_source_manager()
+        
+        # Force use of IBKR for fundamentals
+        loop = None
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        try:
+            data = loop.run_until_complete(
+                manager._get_ibkr_data(ticker, curr_date, curr_date, "fundamentals")
+            )
+            
+            if data and curr_date in data:
+                fundamentals = data[curr_date]
+                if fundamentals and 'fundamentals' in fundamentals:
+                    return (
+                        f"## {ticker} Fundamental Data as of {curr_date}:\n"
+                        f"{fundamentals['fundamentals']}"
+                    )
+            
+            return f"No fundamental data available for {ticker}"
+        
+        finally:
+            if not loop.is_running():
+                try:
+                    loop.close()
+                except:
+                    pass
+    
+    except Exception as e:
+        return f"Error fetching fundamental data for {ticker}: {str(e)}"

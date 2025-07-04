@@ -417,3 +417,71 @@ class Toolkit:
         )
 
         return openai_fundamentals_results
+
+    @staticmethod
+    @tool
+    def get_ibkr_real_time_data(
+        ticker: Annotated[str, "ticker symbol"],
+        curr_date: Annotated[str, "current date in yyyy-mm-dd format"],
+    ):
+        """
+        Get real-time market data from IBKR (Interactive Brokers).
+        Args:
+            ticker (str): Stock ticker symbol (e.g., AAPL, MSFT)
+            curr_date (str): Current date in yyyy-mm-dd format
+        Returns:
+            str: Real-time market data including bid/ask, volume, and prices
+        """
+        return interface.get_ibkr_real_time_data(ticker, curr_date)
+
+    @staticmethod
+    @tool
+    def get_ibkr_company_info(
+        ticker: Annotated[str, "ticker symbol"],
+        curr_date: Annotated[str, "current date in yyyy-mm-dd format"],
+    ):
+        """
+        Get detailed company information from IBKR.
+        Args:
+            ticker (str): Stock ticker symbol (e.g., AAPL, MSFT)
+            curr_date (str): Current date in yyyy-mm-dd format
+        Returns:
+            str: Company information including industry, exchange, trading hours, etc.
+        """
+        return interface.get_ibkr_company_info(ticker, curr_date)
+
+    @staticmethod
+    @tool
+    def get_ibkr_historical_data(
+        ticker: Annotated[str, "ticker symbol"],
+        curr_date: Annotated[str, "current date in yyyy-mm-dd format"],
+        look_back_days: Annotated[int, "how many days to look back"],
+        bar_size: Annotated[str, "bar size (1 day, 1 hour, 5 mins, etc.)"] = "1 day",
+    ):
+        """
+        Get historical market data from IBKR.
+        Args:
+            ticker (str): Stock ticker symbol (e.g., AAPL, MSFT)
+            curr_date (str): Current date in yyyy-mm-dd format
+            look_back_days (int): Number of days to look back
+            bar_size (str): Bar size for historical data (e.g., '1 day', '1 hour', '5 mins')
+        Returns:
+            str: Historical market data with OHLCV information
+        """
+        return interface.get_ibkr_historical_data(ticker, curr_date, look_back_days, bar_size)
+
+    @staticmethod
+    @tool
+    def get_ibkr_fundamentals(
+        ticker: Annotated[str, "ticker symbol"],
+        curr_date: Annotated[str, "current date in yyyy-mm-dd format"],
+    ):
+        """
+        Get fundamental data from IBKR.
+        Args:
+            ticker (str): Stock ticker symbol (e.g., AAPL, MSFT)
+            curr_date (str): Current date in yyyy-mm-dd format
+        Returns:
+            str: Fundamental data including financial statements and ratios
+        """
+        return interface.get_ibkr_fundamentals(ticker, curr_date)
